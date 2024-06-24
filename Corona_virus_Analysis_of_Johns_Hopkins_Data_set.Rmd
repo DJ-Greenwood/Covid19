@@ -41,20 +41,17 @@ required_packages <- c(
 invisible(lapply(required_packages, check_and_install))
 ```
 
-## Description of the Data Resource
-
-The Johns Hopkins Corona-virus Resource Center established a new standard for infectious disease tracking by publicly providing pandemic data in near real-time. It began on January 22, 2020, as the COVID-19 Dashboard, operated by the Center for Systems Science and Engineering (CSSE) and the Applied Physics Laboratory. This is the dataset that will be used for this analysis. The Corona-virus Resource Center ceased its data collection as of March 2022. Further information can be found at this [*website.*](https://coronavirus.jhu.edu/)
-
-### Objective
+## Objective
 
 The objective of this analysis is to explore the COVID-19 dataset from Johns Hopkins University. The data set contains information on confirmed cases, deaths, and recoveries for countries around the world. The analysis will focus on visualizing the data, identifying trends, and gaining insights into the spread of the virus.
 
-### Data Collection
+## Description of the Data Resource
+The Johns Hopkins Corona-virus Resource Center established a new standard for infectious disease tracking by publicly providing pandemic data in near real-time. It began on January 22, 2020, as the COVID-19 Dashboard, operated by the Center for Systems Science and Engineering (CSSE) and the Applied Physics Laboratory. This is the dataset that will be used for this analysis. The Corona-virus Resource Center ceased its data collection as of March 2022. Further information can be found at this [*website.*](https://coronavirus.jhu.edu/)
 
+### Data Collection
 The dataset used in this analysis is sourced from the Johns Hopkins University Center for Systems Science and Engineering (JHU CSSE) COVID-19 Data Repository. We are concerned with the time series data for confirmed cases, deaths, and recoveries at the global level and for the United States. This data can be found at the following GitHub [*location.*](https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series)
 
 ### Data Description
-
 The following is a list of the data sets that we downloaded from the Johns Hopkins University Center for Systems Science and Engineering (JHU CSSE) COVID-19 Data Repository:
 
 -   global_confirmed_transformed: Time series data for confirmed COVID-19 cases at the global level.
@@ -104,7 +101,7 @@ us_deaths <- read_csv_safe(urls[5])
 
 We have loaded the data into data frames for further analysis. Let's examine the structure of the data sets to understand the columns and the first few rows of each data frame. The global data sets include global_confirmed, global_deaths, and global_recovered, while the US data sets include us_confirmed and us_deaths.
 
-The title of each table displays the number of columns and rows in the dataset. The U.S. data sets contain case and death counts, with the us_deaths dataset also including the population of each county in the U.S. The extensive list of reporting dates, which contain the daily case counts, deaths, and recoveries (for the global data sets), and the daily case counts and deaths (for the U.S. data sets) are not displayed in their entirety.
+The title of each table displays the number of columns and rows in the dataset. The U.S. data sets contain case and death counts, with the us_deaths dataset also including the population of each county in the U.S. The dataset contains and extensive list of reporting dates, which contain the daily case counts, deaths for the U.S. dataset and  cases, deaths, and recoveries for the global dataset. 
 
 ```{r Display column names and first few rows of the data sets, echo=TRUE, fig.height=10.5, fig.width=8, message=FALSE, warning=FALSE, paged.print=FALSE}
 knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 80), tidy = TRUE)
@@ -116,20 +113,18 @@ global_recovered_head <- head(global_recovered[, 1:6])
 us_confirmed_head <- head(us_confirmed[, 1:6])
 us_deaths_head <- head(us_deaths[, 1:6])
 
-# Display the column names and the first few rows of the datasets
-kable(global_confirmed_head, caption = "Global Confirmed Cases") 
-kable(global_deaths_head, caption = "Global Deaths Data") 
-kable(global_recovered_head, caption = "Global Recovered Data") 
-kable(us_confirmed_head, caption = "U.S. Confirmed Cases Data") 
-kable(us_deaths_head, caption = "U.S. Deaths Data")
+# Display the column names and the first few rows of the datasets with row and column counts
+kable(global_confirmed_head, caption = paste("Global Confirmed Cases (Rows:", nrow(global_confirmed), ", Columns:", ncol(global_confirmed), ")"))
+kable(global_deaths_head, caption = paste("Global Deaths Data (Rows:", nrow(global_deaths), ", Columns:", ncol(global_deaths), ")"))
+kable(global_recovered_head, caption = paste("Global Recovered Data (Rows:", nrow(global_recovered), ", Columns:", ncol(global_recovered), ")"))
+kable(us_confirmed_head, caption = paste("U.S. Confirmed Cases Data (Rows:", nrow(us_confirmed), ", Columns:", ncol(us_confirmed), ")"))
+kable(us_deaths_head, caption = paste("U.S. Deaths Data (Rows:", nrow(us_deaths), ", Columns:", ncol(us_deaths), ")"))
+
 
 # Remove extra data frames
 rm(global_confirmed_head, global_deaths_head, global_recovered_head, us_confirmed_head, us_deaths_head)
 ```
 
-## Data Cleaning and Transformation
-
-We will change the global data sets (confirmed, deaths, and recovered) to have the same columns: Province_State, Country_Region, date, cases, deaths, recovered, Lat, and Long. We will also change the US data sets (confirmed and deaths) by renaming Long\_ to Long to match the global data sets The last change will be to rename Admin2 to County in the US data sets These changes will create a common structure for all data sets .
 
 ```{r Tranform Data Column names, fig.height=10.5, fig.width=8, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 80), tidy = TRUE)
@@ -284,7 +279,7 @@ kable(us_by_county_state_head, caption = "U.S. by County and State")
 
 This summary provides an overview of the total cases, deaths, and recoveries for both the global dataset and the U.S. dataset. The global dataset encompasses data from all countries, while the U.S. dataset includes data from all states and counties within the United States.
 
-For the global dataset, the total number of recovered cases is counted up to December 13, 2020. The total recovered cases are determined by subtracting the total deaths from the total cases. The figures for total cases, deaths, and recoveries are presented in the table below.
+For the global dataset, the total number of recovered cases is counted up to December 13, 2020. Due to this lack of information we calculated the recovered cases by subtracting the total deaths from the total cases. The calculations for total cases, deaths, and recoveries are presented in the table below.
 
 ```{r Summary of Total, echo=TRUE, fig.width=8, message=TRUE, warning=TRUE, fig.height=10.5}
 knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 80), tidy = TRUE)
@@ -380,11 +375,13 @@ us_cases_plot <- ggplot(us_cases_data, aes(x = date, y = total_cases)) +
 # Display plots
 gridExtra::grid.arrange(global_cases_plot, us_cases_plot, ncol = 1)
 ```
+
 ## Comparative Analysis
 This graph shows the reported number of case for different countries over time. The countries included in the analysis are the United States, India, Brazil, China, Russia, and Australia. The graph provides a visual comparison of the COVID-19 cases in these countries and highlights the differences in the number of cases reported over time.
 
 ```{r Comparative Analysis, echo=TRUE, fig.height=10.5, fig.width=8, message=FALSE, warning=FALSE}
 knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 80), tidy = TRUE)
+
 # Comparative Analysis Between Countries
 country_comparison <- global_confirmed %>%
   filter(Country_Region %in% c("US", "India", "Brazil", "China", "Russia", "Australia")) %>%
@@ -392,6 +389,13 @@ country_comparison <- global_confirmed %>%
   summarize(total_cases = sum(cases, na.rm = TRUE)) %>%
   ggplot(aes(x = date, y = total_cases, color = Country_Region)) +
   geom_line(size = 1) +
+  theme(legend.position = "right")+
+  geom_text(
+    data = . %>% group_by(Country_Region) %>% filter(date == max(date)),
+    aes(label = Country_Region),
+    hjust = 2.75, vjust = -0.25,
+    show.legend = FALSE,
+  ) +
   labs(title = "COVID-19 Cases Comparison: US, India, Brazil, China, Russia, Australia", x = "Date", y = "Total Cases")
 
 print(country_comparison)
@@ -473,6 +477,11 @@ To ensure the reproducibility of this analysis, the following steps can be follo
 3. Download the dataset from the Johns Hopkins University Center for Systems Science and Engineering (JHU CSSE) COVID-19 Data Repository.
 4. Run the R script provided in this document.
 5. Save the session information to verify the environment in which the analysis was conducted.
+
+## References
+John Hopkins University Center for Systems Science and Engineering (JHU CSSE) COVID-19 Data Repository. (2020). COVID-19 Data Repository by the Center for Systems Science and Engineering (CSSE) at Johns Hopkins University. <https://coronavirus.jhu.edu/>
+
+GitHub. (2020). CSSEGISandData/COVID-19. <https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series>
 
 ```{r Save Session Info, echo=TRUE, fig.height=10.5, fig.width=8, message=FALSE, warning=FALSE}
 knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 80), tidy = TRUE)
