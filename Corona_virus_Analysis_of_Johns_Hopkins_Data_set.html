@@ -2866,14 +2866,6 @@ Repository.</li>
 <li>Save the session information to verify the environment in which the
 analysis was conducted.</li>
 </ol>
-</div>
-<div id="references" class="section level2">
-<h2>References</h2>
-<p>John Hopkins University Center for Systems Science and Engineering
-(JHU CSSE) COVID-19 Data Repository. (2020). COVID-19 Data Repository by
-the Center for Systems Science and Engineering (CSSE) at Johns Hopkins
-University. <a href="https://coronavirus.jhu.edu/" class="uri">https://coronavirus.jhu.edu/</a></p>
-<p>GitHub. (2020). CSSEGISandData/COVID-19. <a href="https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series" class="uri">https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series</a></p>
 <pre class="r"><code>knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 80), tidy = TRUE)
 
 # URL path for the permalink to the raw data on GitHub
@@ -2889,6 +2881,14 @@ writeLines(capture.output(sessionInfo()), &quot;session_info.txt&quot;)
 
 # Write a file of all installed packages
 write.csv(installed.packages()[, &quot;Package&quot;], file = &quot;installed_packages.csv&quot;)</code></pre>
+</div>
+<div id="references" class="section level2">
+<h2>References</h2>
+<p>John Hopkins University Center for Systems Science and Engineering
+(JHU CSSE) COVID-19 Data Repository. (2020). COVID-19 Data Repository by
+the Center for Systems Science and Engineering (CSSE) at Johns Hopkins
+University. <a href="https://coronavirus.jhu.edu/" class="uri">https://coronavirus.jhu.edu/</a></p>
+<p>GitHub. (2020). CSSEGISandData/COVID-19. <a href="https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series" class="uri">https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series</a></p>
 </div>
 
 

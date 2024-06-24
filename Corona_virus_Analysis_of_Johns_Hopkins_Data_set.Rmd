@@ -478,11 +478,6 @@ To ensure the reproducibility of this analysis, the following steps can be follo
 4. Run the R script provided in this document.
 5. Save the session information to verify the environment in which the analysis was conducted.
 
-## References
-John Hopkins University Center for Systems Science and Engineering (JHU CSSE) COVID-19 Data Repository. (2020). COVID-19 Data Repository by the Center for Systems Science and Engineering (CSSE) at Johns Hopkins University. <https://coronavirus.jhu.edu/>
-
-GitHub. (2020). CSSEGISandData/COVID-19. <https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series>
-
 ```{r Save Session Info, echo=TRUE, fig.height=10.5, fig.width=8, message=FALSE, warning=FALSE}
 knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 80), tidy = TRUE)
 
@@ -505,3 +500,8 @@ writeLines(capture.output(sessionInfo()), "session_info.txt")
 write.csv(installed.packages()[, "Package"], file = "installed_packages.csv")
 
 ```
+
+## References
+John Hopkins University Center for Systems Science and Engineering (JHU CSSE) COVID-19 Data Repository. (2020). COVID-19 Data Repository by the Center for Systems Science and Engineering (CSSE) at Johns Hopkins University. <https://coronavirus.jhu.edu/>
+
+GitHub. (2020). CSSEGISandData/COVID-19. <https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series>
