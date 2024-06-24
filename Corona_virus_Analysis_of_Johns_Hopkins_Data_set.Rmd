@@ -1,0 +1,498 @@
+---
+title: "Corona-virus Analysis of Johns Hopkins Data set"
+author: "James Greenwood"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    css: styles.css
+    df_print: paged
+  word_document: 
+    includes:
+      in_header: styles.css
+  pdf_document:
+    includes:
+      in_header: styles.css
+always_allow_html: true
+word_document: defaul
+---
+
+```{r load libraries, echo=TRUE, message=FALSE, warning=FALSE, include=FALSE}
+# This section loads the required libraries for the analysis
+knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 80), tidy = TRUE)
+
+# Function to check and install missing packages
+check_and_install <- function(package) {
+  if (!requireNamespace(package, quietly = TRUE)) {
+    install.packages(package, dependencies = TRUE)
+  }
+  library(package, character.only = TRUE)
+}
+
+# List of required packages
+required_packages <- c(
+  "bookdown", "caret", "cluster", "dplyr", "forcats", "formatR",
+  "ggplot2", "ggthemes", "glmnet", "gridExtra", "htmltools",
+  "kableExtra", "knitr", "leaflet", "lubridate", "pandoc", "purrr", 
+  "pROC", "RColorBrewer", "readr", "rmarkdown", "ROCR", 
+  "sf", "stringr", "tidyverse", "tinytex", "webshot2", 
+  "viridisLite"
+)
+# Check and install missing packages
+invisible(lapply(required_packages, check_and_install))
+```
+
+## Description of the Data Resource
+
+The Johns Hopkins Corona-virus Resource Center established a new standard for infectious disease tracking by publicly providing pandemic data in near real-time. It began on January 22, 2020, as the COVID-19 Dashboard, operated by the Center for Systems Science and Engineering (CSSE) and the Applied Physics Laboratory. This is the dataset that will be used for this analysis. The Corona-virus Resource Center ceased its data collection as of March 2022. Further information can be found at this [*website.*](https://coronavirus.jhu.edu/)
+
+### Objective
+
+The objective of this analysis is to explore the COVID-19 dataset from Johns Hopkins University. The data set contains information on confirmed cases, deaths, and recoveries for countries around the world. The analysis will focus on visualizing the data, identifying trends, and gaining insights into the spread of the virus.
+
+### Data Collection
+
+The dataset used in this analysis is sourced from the Johns Hopkins University Center for Systems Science and Engineering (JHU CSSE) COVID-19 Data Repository. We are concerned with the time series data for confirmed cases, deaths, and recoveries at the global level and for the United States. This data can be found at the following GitHub [*location.*](https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series)
+
+### Data Description
+
+The following is a list of the data sets that we downloaded from the Johns Hopkins University Center for Systems Science and Engineering (JHU CSSE) COVID-19 Data Repository:
+
+-   global_confirmed_transformed: Time series data for confirmed COVID-19 cases at the global level.
+-   global_deaths: Time series data for COVID-19 deaths at the global level.
+-   global_recovered: Time series data for COVID-19 recoveries at the global level.
+-   us_confirmed: Time series data for confirmed COVID-19 cases in the United States.
+-   us_deaths: Time series data for COVID-19 deaths in the United States.
+
+```{r Downloading the data from GitHub, fig.height=10.5, fig.width=8, message=FALSE, warning=FALSE, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 80), tidy = TRUE)
+
+# URL path for the permalink to the raw data on GitHub
+raw_url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/4360e50239b4eb6b22f3a1759323748f36752177/csse_covid_19_data/csse_covid_19_time_series/"
+
+# File names
+file_names <- c(
+  "time_series_covid19_confirmed_global.csv",
+  "time_series_covid19_deaths_global.csv",
+  "time_series_covid19_recovered_global.csv",
+  "time_series_covid19_confirmed_US.csv",
+  "time_series_covid19_deaths_US.csv"
+)
+
+# Function for reading files safely
+read_csv_safe <- function(url) {
+  tryCatch(
+    read_csv(url),
+    error = function(e) {
+      warning(paste("Error reading file:", c(e, url)))
+      return(NULL)
+    }
+  )
+}
+
+# Concatenate URL and file name
+urls <- str_c(raw_url, file_names)
+
+# Read Files
+global_confirmed <- read_csv_safe(urls[1])
+global_deaths <- read_csv_safe(urls[2])
+global_recovered <- read_csv_safe(urls[3])
+us_confirmed <- read_csv_safe(urls[4])
+us_deaths <- read_csv_safe(urls[5])
+```
+
+## Data Overview
+
+We have loaded the data into data frames for further analysis. Let's examine the structure of the data sets to understand the columns and the first few rows of each data frame. The global data sets include global_confirmed, global_deaths, and global_recovered, while the US data sets include us_confirmed and us_deaths.
+
+The title of each table displays the number of columns and rows in the dataset. The U.S. data sets contain case and death counts, with the us_deaths dataset also including the population of each county in the U.S. The extensive list of reporting dates, which contain the daily case counts, deaths, and recoveries (for the global data sets), and the daily case counts and deaths (for the U.S. data sets) are not displayed in their entirety.
+
+```{r Display column names and first few rows of the data sets, echo=TRUE, fig.height=10.5, fig.width=8, message=FALSE, warning=FALSE, paged.print=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 80), tidy = TRUE)
+
+# List of data frames with names converted to display the first 12 columns and first few rows
+global_confirmed_head <- head(global_confirmed[, 1:6])
+global_deaths_head <- head(global_deaths[, 1:6])
+global_recovered_head <- head(global_recovered[, 1:6])
+us_confirmed_head <- head(us_confirmed[, 1:6])
+us_deaths_head <- head(us_deaths[, 1:6])
+
+# Display the column names and the first few rows of the datasets
+kable(global_confirmed_head, caption = "Global Confirmed Cases") 
+kable(global_deaths_head, caption = "Global Deaths Data") 
+kable(global_recovered_head, caption = "Global Recovered Data") 
+kable(us_confirmed_head, caption = "U.S. Confirmed Cases Data") 
+kable(us_deaths_head, caption = "U.S. Deaths Data")
+
+# Remove extra data frames
+rm(global_confirmed_head, global_deaths_head, global_recovered_head, us_confirmed_head, us_deaths_head)
+```
+
+## Data Cleaning and Transformation
+
+We will change the global data sets (confirmed, deaths, and recovered) to have the same columns: Province_State, Country_Region, date, cases, deaths, recovered, Lat, and Long. We will also change the US data sets (confirmed and deaths) by renaming Long\_ to Long to match the global data sets The last change will be to rename Admin2 to County in the US data sets These changes will create a common structure for all data sets .
+
+```{r Tranform Data Column names, fig.height=10.5, fig.width=8, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 80), tidy = TRUE)
+
+# Function to check and rename columns if necessary
+check_and_rename <- function(df, old_names, new_names) {
+  for (i in seq_along(old_names)) {
+    if (old_names[i] %in% names(df)) {
+      df <- df %>% rename(!!new_names[i] := !!old_names[i])
+    }
+  }
+  return(df)
+}
+
+# Define the old and new column names
+old_names_global <- c("Province/State", "Country/Region")
+new_names_global <- c("Province_State", "Country_Region")
+
+old_names_us <- c("Admin2", "Long_")
+new_names_us <- c("County", "Long")
+
+# Rename columns in global datasets
+global_confirmed <- check_and_rename(global_confirmed, old_names_global, new_names_global)
+global_deaths <- check_and_rename(global_deaths, old_names_global, new_names_global)
+global_recovered <- check_and_rename(global_recovered, old_names_global, new_names_global)
+
+# Rename columns in US datasets
+us_confirmed <- check_and_rename(us_confirmed, old_names_us, new_names_us)
+us_deaths <- check_and_rename(us_deaths, old_names_us, new_names_us)
+
+# Remove variables that are no longer needed
+rm(old_names_global, new_names_global, old_names_us, new_names_us)
+
+# Function to convert date column to Date type
+convert_date <- function(data) {
+  data <- data %>%
+    mutate(date = as.Date(date, format = "%m/%d/%y"))
+  return(data)
+}
+
+# Pivot longer to reshape the global data
+global_confirmed <- global_confirmed %>%
+  pivot_longer(cols = -c('Province_State', 'Country_Region', Lat, Long), names_to = 'date', values_to = 'cases')
+
+global_deaths <- global_deaths %>%
+  pivot_longer(cols = -c('Province_State', 'Country_Region', Lat, Long), names_to = 'date', values_to = 'deaths')
+
+global_recovered <- global_recovered %>%
+  pivot_longer(cols = -c('Province_State', 'Country_Region', Lat, Long), names_to = 'date', values_to = 'recovered')
+
+# Pivot longer to reshape the US data
+us_confirmed <- us_confirmed %>%
+  pivot_longer(cols = -c(UID, iso2, iso3, code3, FIPS, County, Province_State, Country_Region, Lat, Long, Combined_Key), names_to = "date", values_to = "cases")
+
+us_deaths <- us_deaths %>%
+  pivot_longer(cols = -c(UID, iso2, iso3, code3, FIPS, County, Province_State, Country_Region, Lat, Long, Combined_Key, Population), names_to = "date", values_to = "deaths")
+
+# Apply the date conversion function to each data frame
+global_confirmed <- convert_date(global_confirmed)
+global_deaths <- convert_date(global_deaths)
+global_recovered <- convert_date(global_recovered)
+us_confirmed <- convert_date(us_confirmed)
+us_deaths <- convert_date(us_deaths)
+
+# Combine global data
+global_confirmed_deaths_joined <- global_confirmed %>%
+  full_join(global_deaths, by = c("Province_State", "Country_Region", "date")) %>%
+  full_join(global_recovered, by = c("Province_State", "Country_Region", "date"))
+
+# Change the way the columns are presented
+global_confirmed_deaths_joined <- global_confirmed_deaths_joined %>%
+  select(Province_State, Country_Region, date, cases, deaths, recovered, Lat, Long)
+
+# Combine US data
+us_confirmed <- us_confirmed %>%
+  full_join(us_deaths, by = c("County", "Province_State", "Country_Region", "date")) 
+
+# Group US data by state and county
+us_by_state <- us_confirmed %>%
+  group_by(County, Province_State, Country_Region, date) %>%
+  summarize(cases = sum(cases, na.rm = TRUE), deaths = sum(deaths, na.rm = TRUE), Population = max(Population, na.rm = TRUE), .groups = 'drop') %>%
+  mutate(deaths_per_mill = deaths * 1000000 / Population) %>%
+  filter(cases > 0, deaths > 0) %>%
+  ungroup()
+
+# Group US data by country
+us_by_country_region <- us_confirmed %>%
+  group_by(Country_Region, date) %>%
+  summarize(cases = sum(cases, na.rm = TRUE), deaths = sum(deaths, na.rm = TRUE), Population = max(Population, na.rm = TRUE), .groups = 'drop') %>%
+  mutate(deaths_per_mill = deaths * 1000000 / Population) %>%
+  ungroup()
+
+# Add new cases and new deaths to the US data
+us_by_county_state <- us_by_state %>%
+  arrange(date) %>%
+  group_by(County, Province_State) %>%
+  mutate(
+    new_cases = cases - lag(cases, default = 0),
+    new_deaths = deaths - lag(deaths, default = 0)
+  ) %>%
+  ungroup()
+
+us_by_country <- us_by_country_region %>%
+  arrange(date) %>%
+  mutate(
+    new_cases = cases - lag(cases, default = 0),
+    new_deaths = deaths - lag(deaths, default = 0)
+  )
+```
+
+## Data Transformation Summary
+
+In this section, we describe the steps taken to transform the data for analysis. The process involves renaming columns, reshaping data, converting date formats, and aggregating data for both global and U.S. data sets Below is a detailed explanation of each transformation step:
+
+### Renaming Columns
+
+To ensure consistency and clarity across the data sets, we checked and renamed certain columns. For the global data sets, we renamed "Province/State" to "Province_State" and "Country/Region" to "Country_Region". For the U.S. data sets, we renamed "Admin2" to "County" and "Long\_" to "Long". This was achieved using a custom function that checks for the presence of old column names and renames them if they exist.
+
+### Reshaping Data
+
+We reshaped the data sets from a wide format to a long format to facilitate time series analysis. Using the `pivot_longer` function, we transformed the global confirmed, deaths, and recovered data sets, as well as the U.S. confirmed and deaths data sets This restructuring allowed us to represent each date's data as individual rows, which is more suitable for temporal analysis.
+
+### Date Conversion
+
+We converted the date columns to the Date type to enable accurate date-based operations and analyses. This conversion was done using a custom function that applies the date conversion to each dataset.
+
+### Combining Data sets
+
+For the global data, we combined the confirmed, deaths, and recovered data sets into a single dataset using full joins. This combined dataset contains information on cases, deaths, and recoveries for each location and date.
+
+For the U.S. data, we combined the confirmed and deaths data sets We then aggregated the data at the county and state levels, as well as at the country level. We calculated additional metrics such as deaths per million population, and for the state and county data, we also computed new cases and new deaths by calculating the differences between consecutive dates.
+
+### Summary of Transformed Data
+
+The following tables display samples of the transformed data sets The first table shows a sample of the combined global data, and the second table shows a sample of the aggregated U.S. data by county and state.
+
+```{r Displaying the data in tabular format, echo=TRUE, fig.height=10.5, fig.width=8, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 80), tidy = TRUE, kinter.row = 30)
+
+# Display the column names of the global_confirmed_deaths_joined data set in a kable table
+global_confirmed_head <- head(global_confirmed_deaths_joined)
+kable(global_confirmed_head, caption = "Global confirmed cases data.") 
+
+us_by_county_state_head <- head(us_by_county_state) 
+
+# Display the performance metrics
+kable(us_by_county_state_head, caption = "U.S. by County and State") 
+
+```
+
+## Summary of Total Cases, Deaths, and Recoveries
+
+This summary provides an overview of the total cases, deaths, and recoveries for both the global dataset and the U.S. dataset. The global dataset encompasses data from all countries, while the U.S. dataset includes data from all states and counties within the United States.
+
+For the global dataset, the total number of recovered cases is counted up to December 13, 2020. The total recovered cases are determined by subtracting the total deaths from the total cases. The figures for total cases, deaths, and recoveries are presented in the table below.
+
+```{r Summary of Total, echo=TRUE, fig.width=8, message=TRUE, warning=TRUE, fig.height=10.5}
+knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 80), tidy = TRUE)
+
+# Summarize global data
+global_totals <- global_confirmed_deaths_joined %>%
+  group_by(Country_Region) %>%
+  filter(cases > 0, deaths > 0, recovered > 0) %>% 
+  filter(date == max(date, na.rm = TRUE)) %>%
+  summarize(
+    total_cases = sum(cases, na.rm = TRUE),
+    total_deaths = sum(deaths, na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  summarize(
+    total_cases = sum(total_cases, na.rm = TRUE),
+    total_deaths = sum(total_deaths, na.rm = TRUE),
+    total_recovered = total_cases - total_deaths
+  ) %>%
+  mutate(
+    total_cases = format(total_cases, big.mark = ","),
+    total_deaths = format(total_deaths, big.mark = ","),
+    total_recovered = format(total_recovered, big.mark = ",")
+  )
+
+# Display the global totals
+kable(global_totals,  align = "c", caption = "Global Total Cases, Deaths, and Recoveries") %>%
+  kable_styling(latex_options = "striped",full_width = FALSE)
+
+    
+  
+
+# Summarize US data
+total_us <- us_confirmed %>%
+  left_join(us_by_country_region, by = c("Country_Region", "date", "cases", "deaths")) %>%
+  group_by(Country_Region) %>%
+  filter(date == max(date, na.rm = TRUE)) %>%
+  summarize(
+    total_cases = sum(cases, na.rm = TRUE),
+    total_deaths = sum(deaths, na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  mutate(
+    total_recovered = total_cases - total_deaths,
+    total_cases = format(total_cases, big.mark = ","),
+    total_deaths = format(total_deaths, big.mark = ","),
+    total_recovered = format(total_recovered, big.mark = ",")
+  )
+
+# Display the US totals
+kable(total_us, align = "c", caption = "U.S. Total Cases, Deaths, and Recovered") %>% 
+  kable_styling(latex_options = "striped", full_width = FALSE)
+```
+
+## Visualizing the Data
+These graphs show the actual cases in blue, the linear regression line in red, and the smooth curve in green. The first graph displays the global COVID-19 cases over time, while the second graph shows the U.S. COVID-19 cases over time. The linear regression line and smooth curve provide insights into the trends and patterns of the data.
+
+```{r Visualizing the Data, echo=TRUE, fig.width=8, message=TRUE, warning=TRUE, fig.height=10.5}
+knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 80), tidy = TRUE)
+
+# Prepare Global Cases Data
+global_cases_data <- global_confirmed %>%
+  group_by(date) %>%
+  summarize(total_cases = sum(cases, na.rm = TRUE))
+
+# Prepare U.S. Cases Data
+us_cases_data <- us_confirmed %>%
+  group_by(date) %>%
+  summarize(total_cases = sum(cases, na.rm = TRUE))
+
+# Global Cases Over Time with Regression Line and Smooth Curve
+global_cases_plot <- ggplot(global_cases_data, aes(x = date, y = total_cases)) +
+  geom_line(aes(color = "Actual Cases"), size = 1) +
+  geom_smooth(method = "lm", aes(color = "Linear Regression", linetype = "Linear Regression"), se = FALSE, size = 1) +
+  geom_smooth(aes(color = "Smooth Curve", linetype = "Smooth Curve"), se = FALSE, size = 1) +
+  labs(title = "Global COVID-19 Cases Over Time", x = "Date", y = "Total Cases") +
+  scale_color_manual(name = "Global COVID-19 Type", values = c("Actual Cases" = "blue", "Linear Regression" = "red", "Smooth Curve" = "green")) +
+  scale_linetype_manual(name = "Line Type", values = c("Actual Cases" = "solid", "Linear Regression" = "dashed", "Smooth Curve" = "solid")) +
+  theme(legend.position = "right") +
+  guides(color = guide_legend(order = 1), linetype = guide_legend(order = 2))
+
+# U.S. Cases Over Time with Regression Line and Smooth Curve
+us_cases_plot <- ggplot(us_cases_data, aes(x = date, y = total_cases)) +
+  geom_line(aes(color = "Actual Cases"), size = 1) +
+  geom_smooth(method = "lm", aes(color = "Linear Regression", linetype = "Linear Regression"), se = FALSE, size = 1) +
+  geom_smooth(aes(color = "Smooth Curve", linetype = "Smooth Curve"), se = FALSE, size = 1) +
+  labs(title = "U.S. COVID-19 Cases Over Time", x = "Date", y = "Total Cases") +
+  scale_color_manual(name = "U.S. COVID-19 Line Type", values = c("Actual Cases" = "blue", "Linear Regression" = "red", "Smooth Curve" = "green")) +
+  scale_linetype_manual(name = "Line Type", values = c("Actual Cases" = "solid", "Linear Regression" = "dashed", "Smooth Curve" = "solid")) +
+  theme(legend.position = "right") +
+  guides(color = guide_legend(order = 1), linetype = guide_legend(order = 2))
+
+# Display plots
+gridExtra::grid.arrange(global_cases_plot, us_cases_plot, ncol = 1)
+```
+## Comparative Analysis
+This graph shows the reported number of case for different countries over time. The countries included in the analysis are the United States, India, Brazil, China, Russia, and Australia. The graph provides a visual comparison of the COVID-19 cases in these countries and highlights the differences in the number of cases reported over time.
+
+```{r Comparative Analysis, echo=TRUE, fig.height=10.5, fig.width=8, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 80), tidy = TRUE)
+# Comparative Analysis Between Countries
+country_comparison <- global_confirmed %>%
+  filter(Country_Region %in% c("US", "India", "Brazil", "China", "Russia", "Australia")) %>%
+  group_by(Country_Region, date) %>%
+  summarize(total_cases = sum(cases, na.rm = TRUE)) %>%
+  ggplot(aes(x = date, y = total_cases, color = Country_Region)) +
+  geom_line(size = 1) +
+  labs(title = "COVID-19 Cases Comparison: US, India, Brazil, China, Russia, Australia", x = "Date", y = "Total Cases")
+
+print(country_comparison)
+```
+
+## Statistical Analysis
+The linear regression model aims to predict the total number of deaths based on the total number of cases. The model's summary shows a very high correlation between the two variables, with an R-squared value of 0.8512, indicating that approximately 85.12% of the variability in total deaths can be explained by the total cases. The coefficient for total cases is 0.01343, meaning that for every additional case, there is an associated increase of approximately 0.01343 deaths. This coefficient is highly significant (p-value < 2e-16), suggesting a strong relationship between total cases and total deaths. The residuals indicate some variability, with a residual standard error of 28,240,000, showing the model's accuracy and the spread of residuals around the fitted values. The F-statistic of 1139 and its associated p-value (< 2.2e-16) further confirm the model's overall significance.
+
+```{r Statistical Analysis, echo=TRUE, fig.height=10.5, fig.width=8, message=FALSE, warning=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 80), tidy = TRUE)
+# Correlation Analysis
+cor_data <- global_confirmed_deaths_joined %>%
+  group_by(Country_Region) %>%
+  summarize(
+    total_cases = sum(cases, na.rm = TRUE),
+    total_deaths = sum(deaths, na.rm = TRUE)
+  )
+
+cor_result <- cor(cor_data$total_cases, cor_data$total_deaths, use = "complete.obs")
+cor_result
+
+# Linear Regression Model
+lm_model <- lm(total_deaths ~ total_cases, data = cor_data)
+summary(lm_model)
+```
+
+## Predictive Model
+Using the data, we developed a predictive model to forecast future COVID-19 cases and deaths. This model will help anticipate the future burden on healthcare systems and inform public health interventions.
+
+The predictive model is based on a linear regression approach, where the total cases are used to predict the total deaths. The model's performance is evaluated using the post-resampling method, which provides metrics such as RMSE, MAE, and R-squared to assess the model's accuracy.
+
+```{r Predictive Model, echo=TRUE, fig.height=10.5, fig.width=8, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 80), tidy = TRUE)
+
+set.seed(123)
+
+# Data preparation for predictive modeling
+us_confirmed_model <- us_cases_data %>%
+  mutate(day_of_week = wday(date, label = TRUE), 
+         month = month(date), 
+         day_of_year = yday(date)) %>%
+  select(-date)
+
+trainIndex <- createDataPartition(us_confirmed_model$total_cases, p = 0.8, list = FALSE, times = 1)
+trainData <- us_confirmed_model[trainIndex, ]
+testData <- us_confirmed_model[-trainIndex, ]
+
+# Fit a linear regression model
+model <- train(total_cases ~ ., data = trainData, method = "lm")
+
+# Make predictions
+predictions <- predict(model, newdata = testData)
+
+# Evaluate the model
+postResample(predictions, testData$total_cases)
+```
+
+
+## Bias Considerations
+It is important to consider potential biases in the data and analysis. The dataset may underreport cases and deaths due to limited testing and reporting inconsistencies across different regions. Additionally, the model's predictions are based on historical data, which may not fully capture future changes in virus transmission dynamics, public health interventions, or population behavior.
+
+## Limitations
+This analysis has several limitations that should be considered when interpreting the results. The data is subject to reporting delays, inconsistencies, and inaccuracies, which can affect the accuracy of the analysis. The predictive model developed in this analysis is based on historical data and may not account for future changes in the pandemic. The model's assumptions, such as linearity and independence of variables, may not hold in practice, leading to potential errors in the predictions.
+
+## Conclusion
+This analysis provides a comprehensive overview of the COVID-19 pandemic using the Johns Hopkins dataset. By transforming, visualizing, and analyzing the data, we gained insights into the global and U.S. spread of the virus, the impact on different countries, and the relationship between confirmed cases and deaths.
+
+The predictive model developed in this analysis helps us understand the future burden of COVID-19 and inform public health interventions. However, it is essential to consider the limitations and biases in the data and analysis when interpreting the results. Further research and data collection are needed to improve the accuracy and reliability of COVID-19 analyses and predictions.
+
+## Future Considerations
+Expand the analysis to include additional variables such as vaccination rates, testing capacity, and public health measures to provide a more comprehensive understanding of the pandemic. Incorporate machine learning algorithms to develop more sophisticated predictive models that can capture the complex dynamics of the virus spread. Collaborate with public health agencies and researchers to validate the findings and ensure the analysis is aligned with current scientific knowledge and best practices.
+
+## Reproducibility
+To ensure the reproducibility of this analysis, the following steps can be followed:
+
+1. Download the latest version of R and RStudio.
+2. Install the required packages as listed in the "load libraries" section.
+3. Download the dataset from the Johns Hopkins University Center for Systems Science and Engineering (JHU CSSE) COVID-19 Data Repository.
+4. Run the R script provided in this document.
+5. Save the session information to verify the environment in which the analysis was conducted.
+
+```{r Save Session Info, echo=TRUE, fig.height=10.5, fig.width=8, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 80), tidy = TRUE)
+
+# URL path for the permalink to the raw data on GitHub
+raw_url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/4360e50239b4eb6b22f3a1759323748f36752177/csse_covid_19_data/csse_covid_19_time_series/"
+
+# File names
+file_names <- c(
+  "time_series_covid19_confirmed_global.csv",
+  "time_series_covid19_deaths_global.csv",
+  "time_series_covid19_recovered_global.csv",
+  "time_series_covid19_confirmed_US.csv",
+  "time_series_covid19_deaths_US.csv"
+)
+
+# Save the session information to a text file
+writeLines(capture.output(sessionInfo()), "session_info.txt")
+
+# Write a file of all installed packages
+write.csv(installed.packages()[, "Package"], file = "installed_packages.csv")
+
+```
